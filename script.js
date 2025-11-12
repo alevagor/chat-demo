@@ -114,6 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
 			await loadTicketInfo(currentTicketId);
 		}
 	});
+
+	// Автоматическое подключение к тикету по умолчанию при загрузке
+	const defaultTicketId = ticketIdInput.value.trim();
+	if (defaultTicketId) {
+		console.log(
+			`🔄 Автоматическое подключение к тикету: ${defaultTicketId}`
+		);
+		// Небольшая задержка для завершения инициализации
+		setTimeout(() => {
+			connectToTicket(defaultTicketId);
+		}, 100);
+	}
 });
 
 // Проверка доступности сервера
