@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function checkServerAvailability() {
 	try {
 		// Проверяем доступность сервера через HTTP API
-		const testUrl = `${WS_URL}/api/support/docs`;
+		const testUrl = `${WS_URL}/api/support`;
 		console.log(`🔍 Проверка доступности сервера: ${testUrl}`);
 		const response = await fetch(testUrl, {
 			method: 'HEAD',
@@ -98,7 +98,7 @@ async function checkServerAvailability() {
 		console.warn('⚠️ Server availability check failed:', error);
 		// В режиме no-cors ошибка может быть не критичной, но попробуем еще раз с GET
 		try {
-			const testUrl = `${WS_URL}/api/support/docs`;
+			const testUrl = `${WS_URL}/api/support`;
 			const response = await fetch(testUrl, { method: 'GET' });
 			if (response.ok || response.status === 200) {
 				console.log('✅ Сервер доступен (через GET)');
