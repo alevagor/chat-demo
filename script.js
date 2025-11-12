@@ -440,16 +440,41 @@ async function loadTicketInfo(ticketId) {
 		const isHttpsPage = window.location.protocol === 'https:';
 		const isHttpApi = API_BASE_URL.startsWith('http://');
 
-		let displayError = errorMsg;
+		// Если это Mixed Content ошибка, показываем информативное сообщение
+		// но не блокируем работу приложения
 		if (isHttpsPage && isHttpApi && errorMsg.includes('Failed to fetch')) {
-			displayError =
-				'Mixed Content: HTTPS страница не может подключиться к HTTP API. WebSocket может работать.';
+			displayTicketInfoLimited(ticketId);
+			return;
 		}
 
+		// Для других ошибок показываем стандартное сообщение
 		document.getElementById('ticketInfo').innerHTML = `
-            <p class="error">Ошибка загрузки тикета: ${displayError}</p>
+            <div class="ticket-details">
+                <p><strong>ID:</strong> ${ticketId}</p>
+                <p class="error" style="margin-top: 10px;">Ошибка загрузки тикета: ${errorMsg}</p>
+            </div>
         `;
 	}
+}
+
+// Отображение ограниченной информации о тикете при Mixed Content
+function displayTicketInfoLimited(ticketId) {
+	const ticketInfo = document.getElementById('ticketInfo');
+	ticketInfo.innerHTML = `
+        <div class="ticket-details">
+            <p><strong>ID:</strong> ${ticketId}</p>
+            <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                <p style="margin: 0; color: #856404; font-size: 13px;">
+                    <strong>⚠️ Mixed Content:</strong> Детали тикета недоступны через REST API 
+                    (HTTPS страница → HTTP API). WebSocket подключение работает нормально.
+                </p>
+            </div>
+            <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                Вы можете отправлять и получать сообщения через WebSocket. 
+                Для просмотра полной информации о тикете используйте локальную версию приложения.
+            </p>
+        </div>
+    `;
 }
 
 // Отображение информации о тикете
