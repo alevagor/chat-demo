@@ -1,6 +1,33 @@
-// Конфигурация
-const API_BASE_URL = 'http://medprof.twc1.net:3003/api/support';
-const WS_URL = 'http://medprof.twc1.net:3003';
+// Конфигурация - динамическое определение URL
+function getConfig() {
+	// Проверяем параметры URL
+	const urlParams = new URLSearchParams(window.location.search);
+	const apiUrl = urlParams.get('apiUrl') || urlParams.get('server');
+
+	// Проверяем переменные окружения (для GitHub Pages можно задать через window)
+	const envApiUrl = window.API_URL || window.SERVER_URL;
+
+	// Используем параметр URL, переменную окружения или значение по умолчанию
+	const baseUrl = apiUrl || envApiUrl || 'http://medprof.twc1.net:3003';
+
+	// Убираем trailing slash и протокол для WebSocket
+	const wsUrl = baseUrl.replace(/\/$/, '');
+	const apiBaseUrl = `${wsUrl}/api/support`;
+
+	return {
+		API_BASE_URL: apiBaseUrl,
+		WS_URL: wsUrl,
+	};
+}
+
+const config = getConfig();
+const API_BASE_URL = config.API_BASE_URL;
+const WS_URL = config.WS_URL;
+
+// Логируем используемую конфигурацию
+console.log('🔧 Конфигурация подключения:');
+console.log(`   API URL: ${API_BASE_URL}`);
+console.log(`   WebSocket URL: ${WS_URL}`);
 
 let socket1 = null;
 let socket2 = null;
@@ -8,6 +35,13 @@ let currentTicketId = null;
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', () => {
+	// Отображаем текущий URL сервера
+	const serverUrlEl = document.getElementById('serverUrl');
+	if (serverUrlEl) {
+		serverUrlEl.textContent = WS_URL;
+		serverUrlEl.title = `API: ${API_BASE_URL}\nWebSocket: ${WS_URL}`;
+	}
+
 	const ticketIdInput = document.getElementById('ticketId');
 	const connectBtn = document.getElementById('connectBtn');
 	const messageForm1 = document.getElementById('messageForm1');
@@ -84,30 +118,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Проверка доступности сервера
 async function checkServerAvailability() {
+	// Проверяем mixed content (HTTPS страница → HTTP API)
+	const isHttpsPage = window.location.protocol === 'https:';
+	const isHttpApi = WS_URL.startsWith('http://');
+
+	if (isHttpsPage && isHttpApi) {
+		console.warn(
+			'⚠️ Mixed Content: HTTPS страница пытается подключиться к HTTP API'
+		);
+		console.warn(
+			'   Браузер может блокировать запросы. WebSocket подключение может работать.'
+		);
+	}
+
 	try {
 		// Проверяем доступность сервера через HTTP API
 		const testUrl = `${WS_URL}/api/support`;
 		console.log(`🔍 Проверка доступности сервера: ${testUrl}`);
+
+		// Пробуем простой GET запрос
 		const response = await fetch(testUrl, {
-			method: 'HEAD',
-			mode: 'no-cors', // no-cors не возвращает статус, но позволяет проверить доступность
+			method: 'GET',
+			mode: 'cors',
+			headers: {
+				Accept: 'application/json',
+			},
 		});
-		console.log('✅ Сервер доступен');
+
+		// Если получили ответ (даже с ошибкой), сервер доступен
+		console.log('✅ Сервер доступен (HTTP статус:', response.status, ')');
 		return true;
 	} catch (error) {
 		console.warn('⚠️ Server availability check failed:', error);
-		// В режиме no-cors ошибка может быть не критичной, но попробуем еще раз с GET
+
+		// Проверяем тип ошибки
+		const errorMsg = error.message || error.toString();
+
+		// Mixed content ошибка
+		if (
+			errorMsg.includes('Mixed Content') ||
+			errorMsg.includes('mixed content') ||
+			errorMsg.includes('blocked:mixed-content')
+		) {
+			console.warn(
+				'⚠️ Mixed Content блокировка: HTTPS страница не может подключиться к HTTP API'
+			);
+			console.warn(
+				'   Попробуем WebSocket подключение (может работать, если сервер поддерживает)'
+			);
+			return true; // Продолжаем попытку WebSocket подключения
+		}
+
+		// Если это CORS ошибка, сервер может быть доступен, но блокировать запросы
+		if (errorMsg.includes('CORS') || errorMsg.includes('cors')) {
+			console.log(
+				'⚠️ CORS ошибка, но сервер может быть доступен для WebSocket'
+			);
+			// Продолжаем попытку подключения, так как WebSocket может работать
+			return true;
+		}
+
+		// Для других ошибок пробуем еще раз с no-cors
 		try {
 			const testUrl = `${WS_URL}/api/support`;
-			const response = await fetch(testUrl, { method: 'GET' });
-			if (response.ok || response.status === 200) {
-				console.log('✅ Сервер доступен (через GET)');
-				return true;
-			}
+			await fetch(testUrl, {
+				method: 'HEAD',
+				mode: 'no-cors',
+			});
+			console.log('✅ Сервер доступен (через no-cors)');
+			return true;
 		} catch (e) {
-			console.warn('⚠️ GET request also failed:', e);
+			console.warn('⚠️ No-cors request also failed:', e);
 		}
-		return false;
+
+		// Если все проверки не удались, но это может быть просто CORS/mixed content проблема
+		// Позволяем попытку подключения через WebSocket
+		console.log(
+			'⚠️ HTTP проверка не удалась, но попробуем WebSocket подключение'
+		);
+		return true; // Возвращаем true, чтобы попробовать WebSocket подключение
 	}
 }
 
@@ -228,9 +317,18 @@ function createSocketConnection(ticketId, userId, windowNumber) {
 			console.error(`   Error message: ${error.message || 'No message'}`);
 			console.error(`   Attempted URL: ${WS_URL}/support`);
 			console.error(`   Socket.io path: /socket.io`);
+
+			// Формируем сообщение об ошибке
+			let errorMessage = error.message || 'Неизвестная ошибка';
+			const isHttpsPage = window.location.protocol === 'https:';
+			const isHttpApi = WS_URL.startsWith('http://');
+
+			if (isHttpsPage && isHttpApi) {
+				errorMessage += ' (Mixed Content: HTTPS → HTTP)';
+			}
+
 			updateConnectionStatus(
-				'Ошибка подключения: ' +
-					(error.message || 'Неизвестная ошибка'),
+				'Ошибка подключения: ' + errorMessage,
 				'error'
 			);
 
@@ -239,8 +337,15 @@ function createSocketConnection(ticketId, userId, windowNumber) {
 			console.log('   1. Запущен ли сервер на ' + WS_URL);
 			console.log('   2. Доступен ли namespace /support');
 			console.log('   3. Нет ли проблем с CORS');
+			if (isHttpsPage && isHttpApi) {
+				console.log('   4. Mixed Content: HTTPS страница → HTTP API');
+				console.log('      Браузер может блокировать подключение');
+				console.log(
+					'      Рассмотрите использование HTTPS для API или прокси'
+				);
+			}
 			console.log(
-				'   4. Правильно ли настроен WebSocket Gateway в NestJS\n'
+				'   5. Правильно ли настроен WebSocket Gateway в NestJS\n'
 			);
 		});
 
@@ -331,8 +436,18 @@ async function loadTicketInfo(ticketId) {
 		displayTicketInfo(ticket);
 	} catch (error) {
 		console.error('Error loading ticket:', error);
+		const errorMsg = error.message || 'Неизвестная ошибка';
+		const isHttpsPage = window.location.protocol === 'https:';
+		const isHttpApi = API_BASE_URL.startsWith('http://');
+
+		let displayError = errorMsg;
+		if (isHttpsPage && isHttpApi && errorMsg.includes('Failed to fetch')) {
+			displayError =
+				'Mixed Content: HTTPS страница не может подключиться к HTTP API. WebSocket может работать.';
+		}
+
 		document.getElementById('ticketInfo').innerHTML = `
-            <p class="error">Ошибка загрузки тикета: ${error.message}</p>
+            <p class="error">Ошибка загрузки тикета: ${displayError}</p>
         `;
 	}
 }
@@ -425,7 +540,17 @@ async function createTicket() {
 		alert(`Тикет создан: ${ticket.id}`);
 	} catch (error) {
 		console.error('Error creating ticket:', error);
-		alert('Ошибка создания тикета: ' + error.message);
+		const errorMsg = error.message || 'Неизвестная ошибка';
+		const isHttpsPage = window.location.protocol === 'https:';
+		const isHttpApi = API_BASE_URL.startsWith('http://');
+
+		let displayError = errorMsg;
+		if (isHttpsPage && isHttpApi && errorMsg.includes('Failed to fetch')) {
+			displayError =
+				'Mixed Content: HTTPS страница не может подключиться к HTTP API. Используйте HTTPS для API или прокси.';
+		}
+
+		alert('Ошибка создания тикета: ' + displayError);
 	}
 }
 

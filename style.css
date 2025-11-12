@@ -330,6 +330,19 @@ h1 {
     font-size: 14px;
 }
 
+.server-url {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    margin-bottom: 12px;
+    word-break: break-all;
+    cursor: help;
+}
+
 .error {
     color: #dc3545;
     padding: 10px;
