@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Ticket Chat Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Support Ticket Chat Demo</h1>
+        
+        <div class="ticket-info">
+            <div class="info-group">
+                <label>Ticket ID:</label>
+                <input type="text" id="ticketId" placeholder="Введите ID тикета" value="">
+                <button id="connectBtn">Подключиться к тикету</button>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <!-- User 1 Chat Window -->
+            <div class="chat-box">
+                <div class="chat-header">
+                    <h2>👤 Пользователь 1</h2>
+                    <div class="user-controls">
+                        <label>User ID:</label>
+                        <input type="text" id="userId1" placeholder="User ID" value="user1" class="user-input">
+                        <select id="senderType1" class="sender-select">
+                            <option value="USER">Пользователь</option>
+                            <option value="AGENT">Агент</option>
+                            <option value="BOT">Бот</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="messages1" class="messages"></div>
+                <form id="messageForm1" class="message-form">
+                    <input type="text" id="messageInput1" placeholder="Введите сообщение..." autocomplete="off" />
+                    <button type="submit">Отправить</button>
+                </form>
+            </div>
+
+            <!-- User 2 Chat Window -->
+            <div class="chat-box">
+                <div class="chat-header">
+                    <h2>👤 Пользователь 2</h2>
+                    <div class="user-controls">
+                        <label>User ID:</label>
+                        <input type="text" id="userId2" placeholder="User ID" value="agent1" class="user-input">
+                        <select id="senderType2" class="sender-select">
+                            <option value="USER">Пользователь</option>
+                            <option value="AGENT" selected>Агент</option>
+                            <option value="BOT">Бот</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="messages2" class="messages"></div>
+                <form id="messageForm2" class="message-form">
+                    <input type="text" id="messageInput2" placeholder="Введите сообщение..." autocomplete="off" />
+                    <button type="submit">Отправить</button>
+                </form>
+            </div>
+
+            <!-- Ticket Info Panel -->
+            <div class="ticket-panel">
+                <h3>Информация о тикете</h3>
+                <div id="ticketInfo">
+                    <p>Подключитесь к тикету для просмотра информации</p>
+                </div>
+                <div class="actions">
+                    <h4>Действия:</h4>
+                    <button id="createTicketBtn">Создать новый тикет</button>
+                    <button id="refreshBtn">Обновить</button>
+                </div>
+                <div class="connection-info">
+                    <label>Статус подключения:</label>
+                    <div id="connectionStatus" class="connection-status disconnected">Не подключено</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
